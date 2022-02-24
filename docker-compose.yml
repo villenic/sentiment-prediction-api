@@ -1,0 +1,9 @@
+version: "3.9"
+services:
+  server:
+    image: villenic/sentiment-prediction-api:1.0.0
+    container_name: server
+    ports:
+      - "8000:8000"
+    environment:
+      ADMIN_PWD: 'datascientest1234'

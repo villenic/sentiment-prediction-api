@@ -1,0 +1,29 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sentiment-prediction-deployment
+  labels:
+    app: sentiment-prediction
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sentiment-prediction
+  template:
+    metadata:
+      labels:
+        app: sentiment-prediction
+    spec:
+      containers:
+      - name: sentiment-prediction-api
+        image: villenic/sentiment-prediction-api:1.0.0
+        ports:
+        - containerPort: 8000
+        imagePullPolicy: Always
+        env:
+        - name: ADMIN_PWD
+          valueFrom:
+            secretKeyRef:
+              name: secret-password-name
+              key: secret-password-key
+
