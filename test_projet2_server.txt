@@ -1,0 +1,1007 @@
+###################
+Choix d'implémentation
+###################
+
+/sentiment/status     :	L'application répond qu'elle est fonctionnelle
+
+/sentiment/m1/init    :	L'application initialise le modèle pour le modèle 1 (admin)
+
+/sentiment/m1/predict :	L'application rend une prédiction avec le modèle 1
+
+/sentiment/m1/score   :	L'application rend le score du modèle 1
+
+/sentiment/m2/init    :	L'application initialise le modèle pour le modèle 2 (admin)
+
+/sentiment/m2/predict :	L'application rend une prédiction avec le modèle 2
+
+/sentiment/m2/score   :	L'application rend le score du modèle 2
+
+Choix généraux :
+----------------
+
+Le choix d'implémentation est de renforcer la robustesse de l'application et de minimiser les cas 
+d'erreurs
+
+En plus des cas d'erreur gérés en standard par fastAPI, le programme va traiter  :
+
+- Ceux qui concernent l'authentification / authorisation (erreurs 401) lors de l'initialisation
+
+- Et les erreurs serveur (erreurs 500) pour les traitements des fichiers contenant la base 
+d'entraînement du modèle et les dump générés
+
+Il y a une authenfification sur toutes les api
+
+----
+
+-- https://stackoverflow.com/questions/60816279/predicting-with-a-trained-model
+-- https://stackoverflow.com/questions/54158356/how-to-get-prediction-from-trained-random-forest-model/54158417
+-- https://www.kaggle.com/adamschroeder/countvectorizer-tfidfvectorizer-predict-comments
+
+###################
+Tests docker
+###################
+
+docker exec -it server bash
+
+###################
+Paramètres
+###################
+
+port : 8000
+
+admin :
+ADMIN_PWD : datascientest1234
+
+export ADMIN_PWD=datascientest1234
+
+echo -n "admin:datascientest1234" | base64
+YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=
+
+###################
+1.  @api.get('/sentiment/status')
+###################
+
+# 1.1
+
+      curl -i localhost:8000/sentiment/status \
+           -X GET
+
+      result : {"check":"Ok"}
+
+HTTP/1.1 200 OK
+date: Wed, 23 Feb 2022 19:01:51 GMT
+server: uvicorn
+content-length: 14
+content-type: application/json
+
+{"check":"Ok"}
+
+###################
+2.  @api.post('/sentiment/m1/init')
+###################
+
+# 2.1
+
+      curl -i localhost:8000/sentiment/m1/init \
+           -X GET
+
+      result : KO / 405
+
+HTTP/1.1 405 Method Not Allowed
+date: Wed, 23 Feb 2022 19:12:12 GMT
+server: uvicorn
+content-length: 31
+content-type: application/json
+
+{"detail":"Method Not Allowed"}
+
+# 2.2
+
+      curl -i localhost:8000/sentiment/m1/init \
+           -X POST
+
+      result : KO / 401
+
+HTTP/1.1 401 Unauthorized
+date: Wed, 23 Feb 2022 19:14:28 GMT
+server: uvicorn
+www-authenticate: Basic
+content-length: 30
+content-type: application/json
+
+{"detail":"Not authenticated"}
+
+# 2.3
+
+      curl -i localhost:8000/sentiment/m1/init?authentication="admin:toto" \
+           -X POST
+
+      result : KO / 401
+
+HTTP/1.1 401 Unauthorized
+date: Wed, 23 Feb 2022 19:14:58 GMT
+server: uvicorn
+www-authenticate: Basic
+content-length: 30
+content-type: application/json
+
+{"detail":"Not authenticated"}
+
+# 2.4
+
+      curl -i localhost:8000/sentiment/m1/init?authentication="admin:datascientest1234" \
+           -X POST
+
+      result : KO / 401
+
+HTTP/1.1 401 Unauthorized
+date: Wed, 23 Feb 2022 19:15:17 GMT
+server: uvicorn
+www-authenticate: Basic
+content-length: 30
+content-type: application/json
+
+{"detail":"Not authenticated"}
+
+# 2.5
+
+      curl -i localhost:8000/sentiment/m1/init?authentication="YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -X POST
+
+      result : KO / 401
+
+HTTP/1.1 401 Unauthorized
+date: Wed, 23 Feb 2022 19:15:44 GMT
+server: uvicorn
+www-authenticate: Basic
+content-length: 30
+content-type: application/json
+
+{"detail":"Not authenticated"}
+
+# 2.6
+
+YWRtaW46ZGF0YXNjaWVudGVzdDEyMaQ= au lieu de : YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=
+
+      curl -i localhost:8000/sentiment/m1/init \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMaQ=" \
+           -X POST
+
+      result : KO / 401
+
+HTTP/1.1 401 Unauthorized
+date: Wed, 23 Feb 2022 20:42:27 GMT
+server: uvicorn
+www-authenticate: Basic
+content-length: 47
+content-type: application/json
+
+{"detail":"Invalid authentication credentials"}
+
+# 2.7
+
+echo -n "admin:datascientest1233" | base64
+YWRtaW46ZGF0YXNjaWVudGVzdDEyMzM=
+
+      curl -i localhost:8000/sentiment/m1/init \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzM=" \
+           -X POST
+
+      result : KO / 401
+
+HTTP/1.1 401 Unauthorized
+date: Wed, 23 Feb 2022 20:43:05 GMT
+server: uvicorn
+www-authenticate: Basic
+content-length: 43
+content-type: application/json
+
+{"detail":"Incorrect username or password"}
+
+# 2.8
+
+      curl -i localhost:8000/sentiment/m1/init \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -X POST
+
+      result : OK / 200
+
+HTTP/1.1 200 OK
+date: Wed, 23 Feb 2022 21:17:47 GMT
+server: uvicorn
+content-length: 35
+content-type: application/json
+
+{"score":0.532,"branch":"Compound"}
+
+ll data
+
+ubuntu@ip-172-31-43-204:~/projet2$ ll data
+total 31932
+drwxrwxr-x 2 ubuntu ubuntu     4096 Feb 23 21:08 ./
+drwxrwxr-x 3 ubuntu ubuntu     4096 Feb 23 21:13 ../
+-rw-rw-r-- 1 ubuntu ubuntu   531953 Feb 23 20:53 DisneylandReviews.csv
+-rw-rw-r-- 1 ubuntu ubuntu    95283 Feb 23 22:33 method_01_count_vectorizer.pckl
+-rw-rw-r-- 1 ubuntu ubuntu      116 Feb 23 22:33 method_01_score.pckl
+-rw-rw-r-- 1 ubuntu ubuntu    80839 Feb 23 22:33 method_01_sentiment.pckl
+
+###################
+3.  @api.post('/sentiment/m1/predict')
+###################
+
+# 3.1
+
+      curl -i localhost:8000/sentiment/m1/predict \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -X GET
+
+      result : KO / 405
+
+HTTP/1.1 405 Method Not Allowed
+date: Wed, 23 Feb 2022 21:23:12 GMT
+server: uvicorn
+content-length: 31
+content-type: application/json
+
+{"detail":"Method Not Allowed"}
+
+# 3.2
+
+      curl -i localhost:8000/sentiment/m1/predict \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -X POST
+
+      result : KO / 422
+
+HTTP/1.1 422 Unprocessable Entity
+date: Wed, 23 Feb 2022 21:23:48 GMT
+server: uvicorn
+content-length: 81
+content-type: application/json
+
+{"detail":[{"loc":["body"],"msg":"field required","type":"value_error.missing"}]}
+
+# 3.3
+
+      curl -i localhost:8000/sentiment/m1/predict \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+                "sentence" : "I like Disneyland Paris and its barbapapa"
+               }' \
+           -X POST
+
+      result : OK / 200
+
+HTTP/1.1 200 OK
+date: Wed, 23 Feb 2022 22:36:43 GMT
+server: uvicorn
+content-length: 35
+content-type: application/json
+
+{"sentiment":5,"branch":"Compound"}
+
+# 3.4
+
+curl -i localhost:8000/sentiment/m1/predict \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+                "sentence" : "I like very much Disneyland Paris and its barbapapa extra super genial wonderful"
+               }' \
+           -X POST
+
+      result : OK / 200
+
+HTTP/1.1 200 OK
+date: Wed, 23 Feb 2022 22:36:43 GMT
+server: uvicorn
+content-length: 35
+content-type: application/json
+
+{"sentiment":5,"branch":"Compound"}
+
+# 3.5
+
+curl -i localhost:8000/sentiment/m1/predict \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+                "sentence" : "I hate Disneyland Paris and do not like it"
+               }' \
+           -X POST
+
+      result : OK / 200
+
+HTTP/1.1 200 OK
+date: Wed, 23 Feb 2022 22:41:18 GMT
+server: uvicorn
+content-length: 35
+content-type: application/json
+
+{"sentiment":5,"branch":"Compound"}
+
+###################
+4.  @api.post('/sentiment/m1/score')
+###################
+
+# 4.1
+
+      curl -i localhost:8000/sentiment/m1/score \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -X GET
+
+      result : KO / 405
+
+HTTP/1.1 405 Method Not Allowed
+date: Wed, 23 Feb 2022 22:44:08 GMT
+server: uvicorn
+content-length: 31
+content-type: application/json
+
+{"detail":"Method Not Allowed"}
+
+# 4.2
+
+      curl -i localhost:8000/sentiment/m1/score \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -X POST
+
+      result : KO / 422
+
+HTTP/1.1 422 Unprocessable Entity
+date: Wed, 23 Feb 2022 22:44:28 GMT
+server: uvicorn
+content-length: 81
+content-type: application/json
+
+{"detail":[{"loc":["body"],"msg":"field required","type":"value_error.missing"}]}
+
+# 4.3
+
+      curl -i localhost:8000/sentiment/m1/score \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+               }' \
+           -X POST
+
+      result : OK / 200
+
+HTTP/1.1 200 OK
+date: Wed, 23 Feb 2022 22:46:05 GMT
+server: uvicorn
+content-length: 35
+content-type: application/json
+
+{"score":0.532,"branch":"Compound"}
+
+# 4.4
+
+      curl -i localhost:8000/sentiment/m1/score \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+                "branch" : "Compound"
+               }' \
+           -X POST
+
+      result : OK / 200
+
+HTTP/1.1 200 OK
+date: Wed, 23 Feb 2022 22:48:32 GMT
+server: uvicorn
+content-length: 35
+content-type: application/json
+
+{"score":0.532,"branch":"Compound"}
+
+# 4.5
+
+      curl -i localhost:8000/sentiment/m1/score \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+                "branch" : "Toto"
+               }' \
+           -X POST
+
+      result : KO / 401
+
+HTTP/1.1 401 Unauthorized
+date: Wed, 23 Feb 2022 22:48:50 GMT
+server: uvicorn
+www-authenticate: Basic
+content-length: 29
+content-type: application/json
+
+{"detail":"Incorrect branch"}
+
+###################
+5.  @api.post('/sentiment/m2/init')
+###################
+
+# 5.1
+
+      curl -i localhost:8000/sentiment/m2/init \
+           -X GET
+
+      result : KO / 405
+
+HTTP/1.1 405 Method Not Allowed
+date: Wed, 23 Feb 2022 22:54:01 GMT
+server: uvicorn
+content-length: 31
+content-type: application/json
+
+{"detail":"Method Not Allowed"}
+
+# 5.2
+
+      curl -i localhost:8000/sentiment/m2/init \
+           -X POST
+
+      result : KO / 401
+
+HTTP/1.1 401 Unauthorized
+date: Wed, 23 Feb 2022 22:54:19 GMT
+server: uvicorn
+www-authenticate: Basic
+content-length: 30
+content-type: application/json
+
+{"detail":"Not authenticated"}
+
+# 5.3
+
+YWRtaW46ZGF0YXNjaWVudGVzdDEyMaQ= au lieu de : YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=
+
+      curl -i localhost:8000/sentiment/m2/init \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMaQ=" \
+           -X POST
+
+      result : KO / 401
+
+HTTP/1.1 401 Unauthorized
+date: Wed, 23 Feb 2022 23:06:59 GMT
+server: uvicorn
+www-authenticate: Basic
+content-length: 47
+content-type: application/json
+
+{"detail":"Invalid authentication credentials"}
+
+# 5.4
+
+echo -n "admin:datascientest1233" | base64
+YWRtaW46ZGF0YXNjaWVudGVzdDEyMzM=
+
+      curl -i localhost:8000/sentiment/m2/init \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzM=" \
+           -X POST
+
+      result : KO / 401
+
+HTTP/1.1 401 Unauthorized
+date: Wed, 23 Feb 2022 23:07:40 GMT
+server: uvicorn
+www-authenticate: Basic
+content-length: 43
+content-type: application/json
+
+{"detail":"Incorrect username or password"}
+
+# 5.5
+
+      curl -i localhost:8000/sentiment/m2/init \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -X POST
+
+      result : OK / 200
+
+HTTP/1.1 200 OK
+date: Wed, 23 Feb 2022 23:32:59 GMT
+server: uvicorn
+content-length: 35
+content-type: application/json
+
+{"score":0.544,"branch":"Compound"}
+
+ll data
+
+ubuntu@ip-172-31-43-204:~/projet2$ ll data
+total 31932
+drwxrwxr-x 2 ubuntu ubuntu     4096 Feb 23 21:08 ./
+drwxrwxr-x 3 ubuntu ubuntu     4096 Feb 23 21:13 ../
+-rw-rw-r-- 1 ubuntu ubuntu   531953 Feb 23 20:53 DisneylandReviews.csv
+-rw-rw-r-- 1 ubuntu ubuntu    94974 Feb 23 23:33 method_02_count_vectorizer.pckl
+-rw-rw-r-- 1 ubuntu ubuntu      141 Feb 23 23:33 method_02_score.pckl
+-rw-rw-r-- 1 ubuntu ubuntu    58697 Feb 23 23:33 method_02_sentiment.pckl
+
+###################
+6.  @api.post('/sentiment/m2/predict')
+###################
+
+# 6.1
+
+      curl -i localhost:8000/sentiment/m2/predict \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -X GET
+
+      result : KO / 405
+
+HTTP/1.1 405 Method Not Allowed
+date: Wed, 23 Feb 2022 23:55:06 GMT
+server: uvicorn
+content-length: 31
+content-type: application/json
+
+{"detail":"Method Not Allowed"}
+
+# 6.2
+
+      curl -i localhost:8000/sentiment/m2/predict \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -X POST
+
+      result : KO / 422
+
+HTTP/1.1 422 Unprocessable Entity
+date: Wed, 23 Feb 2022 23:55:32 GMT
+server: uvicorn
+content-length: 81
+content-type: application/json
+
+{"detail":[{"loc":["body"],"msg":"field required","type":"value_error.missing"}]}
+
+# 6.3
+
+      curl -i localhost:8000/sentiment/m2/predict \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+                "sentence" : "I like Disneyland Paris and its barbapapa"
+               }' \
+           -X POST
+
+      result : KO / 401
+
+HTTP/1.1 401 Unauthorized
+date: Thu, 24 Feb 2022 00:00:51 GMT
+server: uvicorn
+www-authenticate: Basic
+content-length: 29
+content-type: application/json
+
+{"detail":"Incorrect branch"}
+
+# 6.4
+
+      curl -i localhost:8000/sentiment/m2/predict \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+                "sentence" : "I like Disneyland Paris and its barbapapa"
+                , "branch" : "Disneyland_HongKong"
+               }' \
+           -X POST
+
+      result : OK / 200
+
+HTTP/1.1 200 OK
+date: Thu, 24 Feb 2022 00:24:13 GMT
+server: uvicorn
+content-length: 46
+content-type: application/json
+
+{"sentiment":5,"branch":"Disneyland_HongKong"}
+
+# 6.5
+
+curl -i localhost:8000/sentiment/m2/predict \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+                "sentence" : "I like very much Disneyland Paris and its barbapapa extra super genial wonderful"
+                , "branch" : "Disneyland_HongKong"
+               }' \
+           -X POST
+
+      result : OK / 200
+
+HTTP/1.1 200 OK
+date: Thu, 24 Feb 2022 00:25:30 GMT
+server: uvicorn
+content-length: 46
+content-type: application/json
+
+{"sentiment":5,"branch":"Disneyland_HongKong"}
+
+# 6.5
+
+curl -i localhost:8000/sentiment/m2/predict \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+                "sentence" : "I hate Disneyland Paris and do not like it"
+                , "branch" : "Disneyland_HongKong"
+               }' \
+           -X POST
+
+      result : OK / 200
+
+HTTP/1.1 200 OK
+date: Thu, 24 Feb 2022 00:26:07 GMT
+server: uvicorn
+content-length: 46
+content-type: application/json
+
+{"sentiment":5,"branch":"Disneyland_HongKong"}
+
+###################
+7.  @api.post('/sentiment/m2/score')
+###################
+
+# 7.1
+
+      curl -i localhost:8000/sentiment/m2/score \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -X GET
+
+      result : KO / 405
+
+HTTP/1.1 405 Method Not Allowed
+date: Wed, 23 Feb 2022 23:34:56 GMT
+server: uvicorn
+content-length: 31
+content-type: application/json
+
+{"detail":"Method Not Allowed"}
+
+# 7.2
+
+      curl -i localhost:8000/sentiment/m2/score \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -X POST
+
+      result : KO / 422
+
+HTTP/1.1 422 Unprocessable Entity
+date: Wed, 23 Feb 2022 23:35:16 GMT
+server: uvicorn
+content-length: 81
+content-type: application/json
+
+{"detail":[{"loc":["body"],"msg":"field required","type":"value_error.missing"}]}
+
+# 7.3
+
+      curl -i localhost:8000/sentiment/m2/score \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+               }' \
+           -X POST
+
+      result : OK / 200
+
+HTTP/1.1 500 Internal Server Error
+date: Wed, 23 Feb 2022 23:35:35 GMT
+server: uvicorn
+content-length: 39
+content-type: application/json
+
+{"detail":"model score recovery error"}
+
+# 7.4
+
+      curl -i localhost:8000/sentiment/m2/score \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+                "branch" : "Compound"
+               }' \
+           -X POST
+
+      result : OK / 200
+
+HTTP/1.1 200 OK
+date: Wed, 23 Feb 2022 23:45:42 GMT
+server: uvicorn
+content-length: 35
+content-type: application/json
+
+{"score":0.544,"branch":"Compound"}
+
+# 7.5
+
+      curl -i localhost:8000/sentiment/m2/score \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+                "branch" : "Toto"
+               }' \
+           -X POST
+
+      result : KO / 401
+
+HTTP/1.1 401 Unauthorized
+date: Wed, 23 Feb 2022 23:46:17 GMT
+server: uvicorn
+www-authenticate: Basic
+content-length: 29
+content-type: application/json
+
+{"detail":"Incorrect branch"}
+
+# 7.6
+
+      curl -i localhost:8000/sentiment/m2/score \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+                "branch" : "Disneyland_HongKong"
+               }' \
+           -X POST
+
+      result : OK / 200
+
+HTTP/1.1 200 OK
+date: Wed, 23 Feb 2022 23:47:24 GMT
+server: uvicorn
+content-length: 46
+content-type: application/json
+
+{"score":0.544,"branch":"Disneyland_HongKong"}
+
+# 7.7
+
+      curl -i localhost:8000/sentiment/m2/score \
+           -H "Content-Type: application/json" \
+           -H "Authorization: Basic YWRtaW46ZGF0YXNjaWVudGVzdDEyMzQ=" \
+           -d '{
+                "branch" : "Disneyland_Paris"
+               }' \
+           -X POST
+
+      result : KO / KeyError ==> L'extrait du fichier pour tests ne contient que des entrées pour "Disneyland_HongKong" => OK
+
+KeyError: 'Disneyland_Paris'
+
+###################
+7.  Tests d'affichage de la documentation
+###################
+
+# 7.1 
+
+Sur la machine windows : 
+
+cd Downloads
+ssh -i "data_enginering_machine.pem" -L 8000:localhost:8000 ubuntu@54.171.77.145
+
+# 7.2
+
+Ouvrez le endpoint docs dans le navigateur : 
+
+http://localhost:8000/docs
+
+      result : OK
+
+###################
+8.  Tests avec container
+###################
+
+# 8.0
+
+Création du container avec docker-compose.yml + Dockerfile :
+
+cd projet2
+./setup.sh
+
+# 8.1
+
+Tests de montage du container dans DockerHub :
+
+Via https://hub.docker.com/repository/docker/villenic/myfastapi/general : 
+
+Vérifier la présence de l'image dans le repository : OK
+
+# 8.2
+
+Tests 1.1, 2.8, 3.5, 4.4, 5.5, 6.4, 7.4, 7.6
+
+      result : OK
+
+###################
+9.  Tests avec Kubernetes
+###################
+
+# 9.0
+
+Installation de Kubernetes dans $HOME :
+
+cd ~
+
+# du -sh /var/lib/docker
+# docker system prune --all --force
+docker system prune --all --force --volumes
+
+curl -LO https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+sudo install minikube-linux-amd64 /usr/local/bin/minikube
+minikube start
+
+curl -LO https://storage.googleapis.com/kubernetes-release/release/v1.21.0/bin/linux/amd64/kubectl
+chmod +x ./kubectl
+sudo mv ./kubectl /usr/local/bin/kubectl
+
+kubectl version --client
+kubectl proxy --address='0.0.0.0' --disable-filter=true
+minikube dashboard --url=true
+
+Dans un browser : 
+
+http://54.171.77.145:8001/api/v1/namespaces/kubernetes-dashboard/services/http:kubernetes-dashboard:/proxy/
+
+Sur la machine : 
+
+~/cd projet2
+
+kubectl apply -f my-secret-eval.yml
+kubectl create -f my-deployment-eval.yml
+kubectl apply -f my-service-eval.yml
+kubectl apply -f my-ingress-eval.yml
+
+-
+
+kubectl get ingress
+
+minikube ip
+192.168.49.2
+
+Sur Windows : 
+
+ssh -i "data_enginering_machine.pem" -L 8000:192.168.49.2:80 ubuntu@54.171.77.145
+
+# 9.1
+
+Tests de montage des containers dans Kubernetes
+
+Dans $HOME : kubectl proxy --address='0.0.0.0' --disable-filter=true
+Dans un browser : http://54.171.77.145:8001/api/v1/namespaces/kubernetes-dashboard/services/http:kubernetes-dashboard:/proxy/
+
+# 9.1.1 Secret monté : OK
+
+# 9.1.2 Deployment monté : KO : 
+
+Deployments / sentiment-prediction-deployment : 
+
+Failed to pull image "villenic/sentiment-prediction-api:1.0.0": 
+rpc error: code = Unknown desc = failed to register layer: 
+Error processing tar file(exit status 1): 
+write /usr/lib/x86_64-linux-gnu/libmpdec.so.2.4.2: 
+no space left on device
+
+=> Impossible de déployer les containers dans les 3 pods.
+Néanmoins, la configuration est bonne, donc le test est validé
+
+# 9.1.3 Service monté : OK
+
+# 9.1.4 Ingress monté : OK
+
+# 9.2
+
+Tests d'exécution dans Kubernetes :
+
+Dans un pod :
+
+apt update
+apt install curl -y
+
+Tests 1.1, 2.8, 3.5, 4.4, 5.5, 6.4, 7.4, 7.6
+
+NA : impossible à exécuter à cause de l'erreur de déploiement précédente
+
+# 9.3
+
+Tests d'exécution depuis l'API web : 
+
+Dans un brower : ssh -i "data_enginering_machine.pem" -L 8000:localhost:80 ubuntu@54.171.77.145
+Passer le test 1.1
+
+NA : impossible à exécuter à cause de l'erreur de déploiement précédente
+
+###################
+# 10.  Insertion dans GitHub
+###################
+
+# 10.0
+
+Création du dépôt dans GitHub : https://github.com/villenic/myRepository
+
+https://github.com/villenic?tab=repositories
+
+New
+Create Repository
+
+villenic/sentiment-prediction-api
+
+# 10.1
+
+Creation de l'environnement GIT sur la machine hôte : 
+
+~/cd projet2
+
+-- https://stackoverflow.com/questions/31305945/git-clone-from-github-over-https-with-two-factor-authentication
+-- https://github.com/settings/tokens
+
+Regenerate Token : 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
+
+git clone https://github.com/villenic/sentiment-prediction-api.git
+
+cp -r * sentiment-prediction-api
+cd sentiment-prediction-api
+
+git status
+
+git add Dockerfile
+git add docker-compose.yml
+git add main.py
+git add my-deployment-eval.yml
+git add my-ingress-eval.yml
+git add my-secret-eval.yml
+git add my-service-eval.yml
+git add requirements.txt
+git add setup.sh
+git add data/DisneylandReviews.csv
+
+git status
+
+ubuntu@ip-172-31-43-204:~/projet2/sentiment-prediction-api$ git status
+On branch master
+
+No commits yet
+
+Changes to be committed:
+  (use "git rm --cached <file>..." to unstage)
+        new file:   Dockerfile
+        new file:   data/DisneylandReviews.csv
+        new file:   docker-compose.yml
+        new file:   main.py
+        new file:   my-deployment-eval.yml
+        new file:   my-ingress-eval.yml
+        new file:   my-secret-eval.yml
+        new file:   my-service-eval.yml
+        new file:   requirements.txt
+        new file:   setup.sh
+
+git commit -m "first commit"
+
+ubuntu@ip-172-31-43-204:~/projet2/sentiment-prediction-api$ git status
+On branch master
+Your branch is based on 'origin/master', but the upstream is gone.
+  (use "git branch --unset-upstream" to fixup)
+
+nothing to commit, working tree clean
+
+git branch -M main
+
+# git remote add origin https://github.com/villenic/sentiment-prediction-api.git
+
+git push -u origin main
+
+ubuntu@ip-172-31-43-204:~/projet2/sentiment-prediction-api$ git push -u origin main
+Username for 'https://github.com': villenic
+Password for 'https://villenic@github.com':
+Enumerating objects: 13, done.
+Counting objects: 100% (13/13), done.
+Delta compression using up to 2 threads
+Compressing objects: 100% (12/12), done.
+Writing objects: 100% (13/13), 10.87 MiB | 3.23 MiB/s, done.
+Total 13 (delta 0), reused 0 (delta 0)
+To https://github.com/villenic/sentiment-prediction-api.git
+ * [new branch]      main -> main
+Branch 'main' set up to track remote branch 'main' from 'origin'.
+
+Vérification dans https://github.com/villenic/sentiment-prediction-api
+
+OK
